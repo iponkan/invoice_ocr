@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -17,9 +18,28 @@ def write_excel(records: list[dict[str, str]], output_path: str | Path) -> Path:
         if column not in df.columns:
             df[column] = ""
     df = df[EXCEL_COLUMNS]
-    df.to_excel(path, index=False, engine="openpyxl")
-    _adjust_column_width(path)
-    return path
+
+    last_error: PermissionError | None = None
+    for candidate in _output_candidates(path):
+        try:
+            df.to_excel(candidate, index=False, engine="openpyxl")
+            _adjust_column_width(candidate)
+            return candidate
+        except PermissionError as exc:
+            last_error = exc
+
+    raise PermissionError(
+        f"无法写入Excel文件，可能文件正在被打开: {path}"
+    ) from last_error
+
+
+def _output_candidates(path: Path) -> list[Path]:
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return [
+        path,
+        path.with_name(f"{path.stem}_{timestamp}{path.suffix}"),
+        path.with_name(f"{path.stem}_{timestamp}_2{path.suffix}"),
+    ]
 
 
 def _adjust_column_width(path: Path) -> None:

@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from config import PP_STRUCTURE_KWARGS
+from config import OCR_KWARGS
 from utils import normalize_spaces
+
+
+def _configure_paddle_runtime() -> None:
+    os.environ.setdefault("FLAGS_use_mkldnn", "0")
+    os.environ.setdefault("FLAGS_enable_onednn", "0")
 
 
 class OCREngine:
@@ -46,9 +52,11 @@ class OCREngine:
 
     def _get_pipeline(self) -> Any:
         if self._pipeline is None:
-            from paddleocr import PPStructureV3
+            _configure_paddle_runtime()
 
-            self._pipeline = PPStructureV3(**PP_STRUCTURE_KWARGS)
+            from paddleocr import PaddleOCR
+
+            self._pipeline = PaddleOCR(**OCR_KWARGS)
         return self._pipeline
 
 

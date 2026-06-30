@@ -16,11 +16,12 @@ EXCEL_COLUMNS = [
 ]
 
 OCR_DEVICE = "cpu"
-PP_STRUCTURE_KWARGS = {
+OCR_KWARGS = {
     "device": OCR_DEVICE,
+    "lang": "ch",
     "use_doc_orientation_classify": False,
     "use_doc_unwarping": False,
-    "use_textline_orientation": True,
+    "use_textline_orientation": False,
 }
 
 
