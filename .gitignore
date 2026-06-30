@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# OCR / Paddle model caches and runtime output
+.paddleocr/
+.paddlex/
+models/
+output/
+result.xlsx
+*.xlsx
+!sample*.xlsx
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
