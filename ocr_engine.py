@@ -10,8 +10,11 @@ from utils import normalize_spaces
 
 
 def _configure_paddle_runtime() -> None:
-    os.environ.setdefault("FLAGS_use_mkldnn", "0")
-    os.environ.setdefault("FLAGS_enable_onednn", "0")
+    os.environ["FLAGS_use_mkldnn"] = "0"
+    os.environ["FLAGS_enable_onednn"] = "0"
+
+
+_configure_paddle_runtime()
 
 
 class OCREngine:

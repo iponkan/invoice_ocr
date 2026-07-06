@@ -19,6 +19,9 @@ OCR_DEVICE = "cpu"
 OCR_KWARGS = {
     "device": OCR_DEVICE,
     "lang": "ch",
+    "enable_mkldnn": False,
+    "enable_hpi": False,
+    "enable_cinn": False,
     "use_doc_orientation_classify": False,
     "use_doc_unwarping": False,
     "use_textline_orientation": False,

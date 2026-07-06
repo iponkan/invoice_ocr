@@ -15,25 +15,24 @@ FIELD_LABELS = [
     "开票日期",
 ]
 
+TABLE_HEADER_LABELS = {
+    "项目编码",
+    "项目名称",
+    "单位",
+    "数量",
+    "标准",
+    "金额",
+    "金额（元）",
+    "备注",
+}
+
 
 def parse_invoice_text(text: str, pdf_path: str | Path) -> dict[str, str]:
     normalized = normalize_spaces(text or "")
     data = {
         "名称": safe_stem(pdf_path),
-        "交款人": _extract_text_value(
-            normalized,
-            [
-                r"交\s*款\s*人\s*[:：]?\s*([^\n\r]+)",
-                r"缴\s*款\s*人\s*[:：]?\s*([^\n\r]+)",
-            ],
-        ),
-        "项目名称": _extract_text_value(
-            normalized,
-            [
-                r"项\s*目\s*名\s*称\s*[:：]?\s*([^\n\r]+)",
-                r"收费\s*项\s*目\s*[:：]?\s*([^\n\r]+)",
-            ],
-        ),
+        "交款人": _extract_payer(normalized),
+        "项目名称": _extract_project_name(normalized),
         "金额": _extract_amount(normalized),
         "申请号": _extract_application_no(normalized),
         "缴费日期": _extract_date(normalized),
@@ -46,6 +45,59 @@ def _extract_text_value(text: str, patterns: list[str]) -> str:
         match = re.search(pattern, text, flags=re.IGNORECASE)
         if match:
             return _clean_value(match.group(1))
+    return ""
+
+
+def _extract_payer(text: str) -> str:
+    lines = _clean_lines(text)
+    for index, line in enumerate(lines):
+        compact = re.sub(r"\s+", "", line)
+        if not re.match(r"^(交款人|缴款人)", compact):
+            continue
+        if "统一社会信用代码" in compact:
+            continue
+
+        value = re.sub(r"^(交\s*款\s*人|缴\s*款\s*人)\s*[:：]?", "", line).strip()
+        if _is_valid_payer(value):
+            return _clean_value(value)
+
+        for next_line in lines[index + 1 :]:
+            if _is_valid_payer(next_line):
+                return _clean_value(next_line)
+            if _is_field_boundary(next_line):
+                break
+
+    return _extract_text_value(
+        text,
+        [
+            r"交\s*款\s*人\s*[:：]\s*([^\n\r]+)",
+            r"缴\s*款\s*人\s*[:：]\s*([^\n\r]+)",
+        ],
+    )
+
+
+def _extract_project_name(text: str) -> str:
+    lines = _clean_lines(text)
+
+    match = re.search(r"收费\s*项\s*目\s*[:：]?\s*([^\n\r]+)", text)
+    if match:
+        value = _clean_project_name(match.group(1))
+        if value:
+            return value
+
+    for index, line in enumerate(lines):
+        if re.sub(r"\s+", "", line) != "项目名称":
+            continue
+        for next_line in lines[index + 1 :]:
+            value = _clean_project_name(next_line)
+            if value:
+                return value
+
+    for line in lines:
+        value = _clean_project_name(line)
+        if value and re.search(r"费|专利|服务|税|款|证书|登记", value):
+            return value
+
     return ""
 
 
@@ -64,9 +116,9 @@ def _extract_amount(text: str) -> str:
 
 def _extract_application_no(text: str) -> str:
     label_patterns = [
-        r"申\s*请\s*号\s*[:：]?\s*(\d{8,12})",
-        r"申\s*请\s*编\s*号\s*[:：]?\s*(\d{8,12})",
-        r"业\s*务\s*号\s*[:：]?\s*(\d{8,12})",
+        r"申\s*请\s*号\s*[:：]?\s*(\d{8,20})",
+        r"申\s*请\s*编\s*号\s*[:：]?\s*(\d{8,20})",
+        r"业\s*务\s*号\s*[:：]?\s*(\d{8,20})",
     ]
     compact = re.sub(r"\s+", "", text)
     for pattern in label_patterns:
@@ -74,14 +126,14 @@ def _extract_application_no(text: str) -> str:
         if match:
             return match.group(1)
 
-    match = re.search(r"(?<!\d)(\d{8,12})(?!\d)", compact)
+    match = re.search(r"(?<!\d)(\d{8,20})(?!\d)", compact)
     return match.group(1) if match else ""
 
 
 def _extract_date(text: str) -> str:
     patterns = [
-        r"开\s*票\s*日\s*期\s*[:：]?\s*([0-9]{4}[年\-./][0-9]{1,2}[月\-./][0-9]{1,2}日?)",
         r"缴\s*费\s*日\s*期\s*[:：]?\s*([0-9]{4}[年\-./][0-9]{1,2}[月\-./][0-9]{1,2}日?)",
+        r"开\s*票\s*日\s*期\s*[:：]?\s*([0-9]{4}[年\-./][0-9]{1,2}[月\-./][0-9]{1,2}日?)",
         r"日\s*期\s*[:：]?\s*([0-9]{4}[年\-./][0-9]{1,2}[月\-./][0-9]{1,2}日?)",
     ]
     for pattern in patterns:
@@ -89,6 +141,45 @@ def _extract_date(text: str) -> str:
         if match:
             return _normalize_date(match.group(1))
     return ""
+
+
+def _clean_lines(text: str) -> list[str]:
+    return [clean_cell_text(line) for line in text.splitlines() if clean_cell_text(line)]
+
+
+def _is_field_boundary(value: str) -> bool:
+    compact = re.sub(r"\s+", "", value)
+    return any(label in compact for label in FIELD_LABELS)
+
+
+def _is_valid_payer(value: str) -> bool:
+    value = clean_cell_text(value)
+    if not value:
+        return False
+    compact = re.sub(r"\s+", "", value)
+    if "统一社会信用代码" in compact or re.fullmatch(r"[0-9A-Z]{12,25}", compact):
+        return False
+    if compact in TABLE_HEADER_LABELS:
+        return False
+    return len(compact) >= 4
+
+
+def _clean_project_name(value: str) -> str:
+    value = clean_cell_text(value)
+    if not value:
+        return ""
+    compact = re.sub(r"\s+", "", value)
+    if compact in TABLE_HEADER_LABELS:
+        return ""
+    if re.fullmatch(r"[0-9.]+", compact):
+        return ""
+    if compact in {"元", "合计", "其他信息"}:
+        return ""
+    if "金额合计" in compact or "小写" in compact or "申请号" in compact:
+        return ""
+
+    value = re.sub(r"^\d{6,}\s*", "", value)
+    return _clean_value(value)
 
 
 def _clean_value(value: str) -> str:
