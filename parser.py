@@ -61,11 +61,9 @@ def _extract_payer(text: str) -> str:
         if _is_valid_payer(value):
             return _clean_value(value)
 
-        for next_line in lines[index + 1 :]:
-            if _is_valid_payer(next_line):
-                return _clean_value(next_line)
-            if _is_field_boundary(next_line):
-                break
+        candidates = [_clean_value(item) for item in lines[index + 1 :] if _is_valid_payer(item)]
+        if candidates:
+            return max(candidates, key=_payer_score)
 
     return _extract_text_value(
         text,
@@ -94,6 +92,12 @@ def _extract_project_name(text: str) -> str:
                 return value
 
     for line in lines:
+        if re.match(r"^\d{6,}\s+\S+", line):
+            value = _clean_project_name(line)
+            if value:
+                return value
+
+    for line in lines:
         value = _clean_project_name(line)
         if value and re.search(r"费|专利|服务|税|款|证书|登记", value):
             return value
@@ -111,6 +115,9 @@ def _extract_amount(text: str) -> str:
         match = re.search(pattern, text, flags=re.IGNORECASE)
         if match:
             return _format_amount(match.group(1))
+    amounts = re.findall(r"(?<!\d)([0-9]+\.[0-9]{2})(?!\d)", text)
+    if amounts:
+        return _format_amount(amounts[-1])
     return ""
 
 
@@ -159,9 +166,41 @@ def _is_valid_payer(value: str) -> bool:
     compact = re.sub(r"\s+", "", value)
     if "统一社会信用代码" in compact or re.fullmatch(r"[0-9A-Z]{12,25}", compact):
         return False
+    if _is_field_boundary(value):
+        return False
     if compact in TABLE_HEADER_LABELS:
         return False
+    if re.fullmatch(r"[0-9.\-年月日]+", compact):
+        return False
+    if any(
+        label in compact
+        for label in (
+            "财政部监制",
+            "票据号码",
+            "票据代码",
+            "校验码",
+            "收款单位",
+            "复核人",
+            "收款人",
+            "金额合计",
+            "其他信息",
+        )
+    ):
+        return False
     return len(compact) >= 4
+
+
+def _payer_score(value: str) -> int:
+    compact = re.sub(r"\s+", "", value)
+    score = len(compact)
+    if "有限公司" in compact:
+        score += 40
+    elif "公司" in compact:
+        score += 30
+    for keyword in ("研究院", "学院", "学校", "医院", "中心", "事务所"):
+        if keyword in compact:
+            score += 20
+    return score
 
 
 def _clean_project_name(value: str) -> str:
@@ -175,10 +214,13 @@ def _clean_project_name(value: str) -> str:
         return ""
     if compact in {"元", "合计", "其他信息"}:
         return ""
+    if "票据" in compact:
+        return ""
     if "金额合计" in compact or "小写" in compact or "申请号" in compact:
         return ""
 
     value = re.sub(r"^\d{6,}\s*", "", value)
+    value = re.sub(r"\s+元\s+[0-9,.]+(?:\s+[0-9,.]+)*$", "", value)
     return _clean_value(value)
 
 
