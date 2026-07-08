@@ -45,7 +45,7 @@ class BatchProcessor:
 
         for index, pdf_path in enumerate(pdf_files, start=1):
             if progress_callback:
-                progress_callback(index - 1, total, f"正在识别: {pdf_path.name}")
+                progress_callback(index - 1, total, f"正在读取: {pdf_path.name}")
             try:
                 text = self.ocr_engine.extract_text(pdf_path)
                 record = parse_invoice_text(text, pdf_path)

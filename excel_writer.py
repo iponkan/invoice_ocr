@@ -4,8 +4,7 @@ from datetime import datetime
 from pathlib import Path
 import unicodedata
 
-import pandas as pd
-from openpyxl import load_workbook
+from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment
 
 from config import EXCEL_COLUMNS
@@ -28,16 +27,10 @@ def write_excel(records: list[dict[str, str]], output_path: str | Path) -> Path:
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    df = pd.DataFrame(records)
-    for column in EXCEL_COLUMNS:
-        if column not in df.columns:
-            df[column] = ""
-    df = df[EXCEL_COLUMNS]
-
     last_error: PermissionError | None = None
     for candidate in _output_candidates(path):
         try:
-            df.to_excel(candidate, index=False, engine="openpyxl")
+            _write_workbook(records, candidate)
             _adjust_column_width(candidate)
             return candidate
         except PermissionError as exc:
@@ -46,6 +39,17 @@ def write_excel(records: list[dict[str, str]], output_path: str | Path) -> Path:
     raise PermissionError(
         f"无法写入Excel文件，可能文件正在被打开: {path}"
     ) from last_error
+
+
+def _write_workbook(records: list[dict[str, str]], path: Path) -> None:
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(EXCEL_COLUMNS)
+
+    for record in records:
+        sheet.append([record.get(column, "") for column in EXCEL_COLUMNS])
+
+    workbook.save(path)
 
 
 def _output_candidates(path: Path) -> list[Path]:

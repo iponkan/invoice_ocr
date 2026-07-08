@@ -1,7 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-from PyInstaller.utils.hooks import collect_submodules
-
 excluded_modules = [
     "datasets",
     "einops",
@@ -9,8 +7,18 @@ excluded_modules = [
     "gradio",
     "hf_xet",
     "huggingface_hub",
+    "chardet",
+    "charset_normalizer",
+    "lxml",
     "matplotlib",
+    "numpy",
     "notebook",
+    "paddle",
+    "paddleocr",
+    "paddlex",
+    "pandas",
+    "PIL",
+    "psutil",
     "scipy",
     "sklearn",
     "tensorboard",
@@ -26,20 +34,8 @@ a = Analysis(
     ["main.py"],
     pathex=[],
     binaries=[],
-    datas=[
-        (
-            r"C:\Users\can\.paddlex\official_models\PP-OCRv6_medium_det",
-            r"models\PP-OCRv6_medium_det",
-        ),
-        (
-            r"C:\Users\can\.paddlex\official_models\PP-OCRv6_medium_rec",
-            r"models\PP-OCRv6_medium_rec",
-        ),
-    ],
-    hiddenimports=(
-        collect_submodules("paddleocr")
-        + collect_submodules("pypdfium2")
-    ),
+    datas=[],
+    hiddenimports=["pypdfium2"],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

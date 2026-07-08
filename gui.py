@@ -108,7 +108,7 @@ class MainWindow(QMainWindow):
         output_path = str(Path(folder) / DEFAULT_EXCEL_NAME)
         self._set_running(True)
         self.progress_bar.setValue(0)
-        self.log_edit.appendPlainText("开始处理，首次加载模型可能需要几分钟...")
+        self.log_edit.appendPlainText("开始处理PDF文字层...")
 
         self.thread = QThread(self)
         self.worker = BatchWorker(folder, output_path)
