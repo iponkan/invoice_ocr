@@ -15,10 +15,10 @@ uv run python main.py
 ## 打包
 
 ```bash
-uv run pyinstaller -F -w main.py
+uv run pyinstaller -y InvoiceOCR.spec
 ```
 
-Windows 上打包结果在 `dist/main.exe`。Linux 上打包会生成 Linux 可执行文件 `dist/main`，不能改名成 `.exe` 给 Windows 使用。
+Windows 上打包结果在 `dist/InvoiceOCR/InvoiceOCR.exe`。Linux 上打包会生成 Linux 可执行文件，不能改名成 `.exe` 给 Windows 使用。
 
 ## 输出字段
 

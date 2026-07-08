@@ -106,16 +106,20 @@ def _extract_project_name(text: str) -> str:
 
 
 def _extract_amount(text: str) -> str:
+    amount_number = r"[0-9][0-9,\s，]*(?:\.[0-9]{1,2})?"
     patterns = [
-        r"小\s*写\s*[:：]?\s*(?:人民币)?\s*[¥￥]?\s*([0-9]+(?:\.[0-9]{1,2})?)",
-        r"\(小\s*写\)\s*(?:人民币)?\s*[¥￥]?\s*([0-9]+(?:\.[0-9]{1,2})?)",
-        r"[¥￥]\s*([0-9]+(?:\.[0-9]{1,2})?)",
+        rf"小\s*写\s*[:：]?\s*(?:人民币)?\s*[¥￥]?\s*({amount_number})",
+        rf"\(小\s*写\)\s*(?:人民币)?\s*[¥￥]?\s*({amount_number})",
+        rf"[¥￥]\s*({amount_number})",
     ]
     for pattern in patterns:
         match = re.search(pattern, text, flags=re.IGNORECASE)
         if match:
             return _format_amount(match.group(1))
-    amounts = re.findall(r"(?<!\d)([0-9]+\.[0-9]{2})(?!\d)", text)
+    amounts = re.findall(
+        r"(?<![\d,，])([0-9]{1,3}(?:[,，]\d{3})+(?:\.\d{2})|[0-9]+(?:\.\d{2}))(?![\d,，])",
+        text,
+    )
     if amounts:
         return _format_amount(amounts[-1])
     return ""
@@ -123,18 +127,22 @@ def _extract_amount(text: str) -> str:
 
 def _extract_application_no(text: str) -> str:
     label_patterns = [
-        r"申\s*请\s*号\s*[:：]?\s*(\d{8,20})",
-        r"申\s*请\s*编\s*号\s*[:：]?\s*(\d{8,20})",
-        r"业\s*务\s*号\s*[:：]?\s*(\d{8,20})",
+        r"申\s*请\s*号\s*[:：]?\s*([0-9]{8,20}[XxＸｘ×]?)",
+        r"申\s*请\s*编\s*号\s*[:：]?\s*([0-9]{8,20}[XxＸｘ×]?)",
+        r"业\s*务\s*号\s*[:：]?\s*([0-9]{8,20}[XxＸｘ×]?)",
     ]
     compact = re.sub(r"\s+", "", text)
     for pattern in label_patterns:
         match = re.search(pattern, compact)
         if match:
-            return match.group(1)
+            return _normalize_application_no(match.group(1))
+
+    match = re.search(r"(?<![0-9A-Za-z])([0-9]{8,20}[XxＸｘ×])(?![0-9A-Za-z])", compact)
+    if match:
+        return _normalize_application_no(match.group(1))
 
     match = re.search(r"(?<!\d)(\d{8,20})(?!\d)", compact)
-    return match.group(1) if match else ""
+    return _normalize_application_no(match.group(1)) if match else ""
 
 
 def _extract_date(text: str) -> str:
@@ -235,10 +243,15 @@ def _clean_value(value: str) -> str:
 
 
 def _format_amount(value: str) -> str:
+    value = re.sub(r"[\s,，]", "", value)
     try:
         return f"{float(value):.2f}"
     except ValueError:
         return value
+
+
+def _normalize_application_no(value: str) -> str:
+    return value.strip().replace("Ｘ", "X").replace("ｘ", "X").replace("×", "X").upper()
 
 
 def _normalize_date(value: str) -> str:

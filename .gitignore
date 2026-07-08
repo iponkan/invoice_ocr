@@ -18,7 +18,9 @@ ENV/
 # PyInstaller
 build/
 dist/
+dist_new/
 *.spec
+!InvoiceOCR.spec
 
 # OCR / Paddle model caches and runtime output
 .paddleocr/
